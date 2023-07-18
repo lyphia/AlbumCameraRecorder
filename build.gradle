@@ -40,7 +40,7 @@ ext {
     appcompatSdkVersion = '1.3.1'
     constraintlayoutSdkVersion = '2.1.4'
     documentfileSdkVersion = '1.0.1'
-    androidMaterialSdkVersion = '1.2.1'
+    androidMaterialSdkVersion = '1.5.0'
     minSdkVersion = 21
     targetSdkVersion = 33
 

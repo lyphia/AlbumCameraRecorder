@@ -14,7 +14,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.Log;
+import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
@@ -34,9 +34,6 @@ import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
-import com.zhongjh.albumcamerarecorder.album.ui.main.MainFragment;
-import com.zhongjh.albumcamerarecorder.camera.ui.camera.CameraFragment;
-import com.zhongjh.albumcamerarecorder.recorder.SoundRecordingFragment;
 import com.zhongjh.albumcamerarecorder.settings.GlobalSpec;
 import com.zhongjh.albumcamerarecorder.utils.AttrsUtils;
 import com.zhongjh.albumcamerarecorder.utils.HandleBackUtil;
@@ -75,6 +72,10 @@ public class MainActivity extends AppCompatActivity {
      */
     private static final String IS_SAVE_INSTANCE_STATE = "IS_SAVE_INSTANCE_STATE";
 
+    /**
+     * ViewPager
+     */
+    private ViewPager2 mVpPager;
     /**
      * 底部控件
      */
@@ -159,6 +160,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         if (mLayoutMediator != null) {
             mLayoutMediator.detach();
+            mLayoutMediator = null;
+            mVpPager.setAdapter(null);
         }
         if (mSpec.getCameraSetting() != null) {
             mSpec.getCameraSetting().clearCameraFragment();
@@ -257,7 +260,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private void init(Bundle savedInstanceState) {
         if (!mIsInit) {
-            ViewPager2 mVpPager = findViewById(R.id.viewPager);
+            mVpPager = findViewById(R.id.viewPager);
             mTabLayout = findViewById(R.id.tableLayout);
             initTabLayoutStyle();
             mTabLayout.setTag(R.id.z_tab_layout_translation_y, 0);
@@ -285,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 mTabLayout.setVisibility(View.VISIBLE);
                 mLayoutMediator = new TabLayoutMediator(mTabLayout, mVpPager, false, true,
-                        (tab, position) -> tab.setText(adapterViewPager.mTitles.get(position)));
+                        (tab, position) -> tab.setText("123"));
                 mLayoutMediator.attach();
                 // 禁滑viewPager
                 mVpPager.setUserInputEnabled(false);
@@ -510,66 +513,74 @@ public class MainActivity extends AppCompatActivity {
          */
         public ArrayList<String> mTitles = new ArrayList<>();
 
+        SparseArray<Fragment> sparseArray = new SparseArray<>();
+
         public MyPagerAdapter(FragmentActivity fa, GlobalSpec mSpec) {
             super(fa);
 
-            // 默认选择谁的类型
-            int defaultPositionType = ALBUM;
-
-            if (mSpec.getDefaultPosition() == RECORDER) {
-                // 默认语音
-                defaultPositionType = RECORDER;
-            } else if (mSpec.getDefaultPosition() == CAMERA) {
-                // 默认录制
-                defaultPositionType = CAMERA;
-            }
-
-            // 根据相关配置做相应的初始化，相册生效
-            if (SelectableUtils.albumValid()) {
-                numItems++;
-                mTitles.add(getString(R.string.z_multi_library_album));
-            }
-            // 相机生效
-            if (SelectableUtils.cameraValid()) {
-                if (defaultPositionType == CAMERA) {
-                    mDefaultPosition = numItems;
-                }
-                numItems++;
-                mTitles.add(getString(R.string.z_multi_library_take_photos));
-            }
-            // 录音生效
-            if (SelectableUtils.recorderValid()) {
-                if (defaultPositionType == RECORDER) {
-                    mDefaultPosition = numItems;
-                }
-                numItems++;
-                mTitles.add(getString(R.string.z_multi_library_sound_recording));
-            }
-
+//            // 默认选择谁的类型
+//            int defaultPositionType = ALBUM;
+//
+//            if (mSpec.getDefaultPosition() == RECORDER) {
+//                // 默认语音
+//                defaultPositionType = RECORDER;
+//            } else if (mSpec.getDefaultPosition() == CAMERA) {
+//                // 默认录制
+//                defaultPositionType = CAMERA;
+//            }
+//
+//            // 根据相关配置做相应的初始化，相册生效
+//            if (SelectableUtils.albumValid()) {
+//                numItems++;
+//                mTitles.add(getString(R.string.z_multi_library_album));
+//            }
+//            // 相机生效
+//            if (SelectableUtils.cameraValid()) {
+//                if (defaultPositionType == CAMERA) {
+//                    mDefaultPosition = numItems;
+//                }
+//                numItems++;
+//                mTitles.add(getString(R.string.z_multi_library_take_photos));
+//            }
+//            // 录音生效
+//            if (SelectableUtils.recorderValid()) {
+//                if (defaultPositionType == RECORDER) {
+//                    mDefaultPosition = numItems;
+//                }
+//                numItems++;
+//                mTitles.add(getString(R.string.z_multi_library_sound_recording));
+//            }
+            mTitles.add(getString(R.string.z_multi_library_album));
+            mTitles.add(getString(R.string.z_multi_library_album));
+            mTitles.add(getString(R.string.z_multi_library_album));
         }
 
         @NonNull
         @Override
         public Fragment createFragment(int position) {
-            if (mTitles.get(position).equals(getString(R.string.z_multi_library_album))) {
-                if (numItems <= 1) {
-                    return MainFragment.Companion.newInstance(0);
-                }
-                return MainFragment.Companion.newInstance(50);
-            } else if (mTitles.get(position).equals(getString(R.string.z_multi_library_sound_recording))) {
-                return SoundRecordingFragment.newInstance();
-            } else {
-                if (mSpec.getCameraSetting() != null && mSpec.getCameraSetting().getBaseCameraFragment() != null) {
-                    return mSpec.getCameraSetting().getBaseCameraFragment();
-                } else {
-                    return CameraFragment.newInstance();
-                }
-            }
+            return new TestFragment1();
+//            if (mTitles.get(position).equals(getString(R.string.z_multi_library_album))) {
+////                if (numItems <= 1) {
+////                    return MainFragment.Companion.newInstance(0);
+////                }
+////                return MainFragment.Companion.newInstance(50);
+//                return new TestFragment1();
+//            } else if (mTitles.get(position).equals(getString(R.string.z_multi_library_sound_recording))) {
+////                return SoundRecordingFragment.newInstance();
+//                return new TestFragment2();
+//            } else {
+//                return new TestFragment3();
+////                if (mSpec.getCameraSetting() != null && mSpec.getCameraSetting().getBaseCameraFragment() != null) {
+////                    return mSpec.getCameraSetting().getBaseCameraFragment();
+////                } else {
+////                    return CameraFragment.newInstance();
+////                }
+//            }
         }
 
         @Override
         public int getItemCount() {
-            return numItems;
+            return mTitles.size();
         }
     }
 
