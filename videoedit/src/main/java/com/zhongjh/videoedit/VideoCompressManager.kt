@@ -1,8 +1,16 @@
 package com.zhongjh.videoedit
 
+import com.coremedia.iso.boxes.Container
+import com.googlecode.mp4parser.FileDataSourceImpl
+import com.googlecode.mp4parser.authoring.Movie
+import com.googlecode.mp4parser.authoring.builder.DefaultMp4Builder
+import com.googlecode.mp4parser.authoring.container.mp4.MovieCreator
+import com.googlecode.mp4parser.authoring.tracks.CroppedTrack
 import com.zhongjh.common.coordinator.VideoCompressCoordinator
-import com.zhongjh.common.listener.VideoEditListener
-import io.microshow.rxffmpeg.RxFFmpegInvoke
+import java.io.File
+import java.io.IOException
+import java.io.RandomAccessFile
+import java.nio.channels.FileChannel
 import java.util.*
 
 /**
@@ -13,50 +21,28 @@ import java.util.*
  */
 class VideoCompressManager : VideoCompressCoordinator {
 
-    private var mMyRxFfmpegCompressSubscriber = HashMap<Class<*>, MyRxFfmpegSubscriber>()
-    private var mVideoCompressListener = HashMap<Class<*>, VideoEditListener?>()
-
-    override fun setVideoCompressListener(cls: Class<*>, videoCompressListener: VideoEditListener) {
-        mVideoCompressListener[cls] = videoCompressListener
-    }
-
-    override fun compressRxJava(cls: Class<*>, oldPath: String, compressPath: String) {
-        val commands = "ffmpeg -y -i $oldPath -b 2097k -r 30 -vcodec libx264 -preset superfast $compressPath"
-        if (mVideoCompressListener[cls] == null) {
-            return
+    @Throws(IOException::class)
+    override fun compress(oldPath: String, compressPath: String) {
+        // 创建压缩后的视频文件
+        val outputFile = File(compressPath)
+        if (!outputFile.exists()) {
+            outputFile.createNewFile();
         }
-        var myRxFfmpegSubscriber = mMyRxFfmpegCompressSubscriber[cls]
-        if (myRxFfmpegSubscriber == null) {
-            myRxFfmpegSubscriber = MyRxFfmpegSubscriber(mVideoCompressListener[cls]!!)
+        // 设置压缩参数
+        val movie = MovieCreator.build(FileDataSourceImpl(oldPath))
+        val tracks = movie.tracks
+        movie.tracks = LinkedList()
+        // 开始压缩视频
+        val compressedMovie = Movie()
+        for (track in tracks) {
+            if (track.handler.equals("vide")) {
+                compressedMovie.addTrack(CroppedTrack(track, 0, track.duration))
+            }
         }
-
-        // 开始执行FFmpeg命令
-        RxFFmpegInvoke.getInstance()
-                .runCommandRxJava(commands.split(" ".toRegex()).toTypedArray())
-                .subscribe(myRxFfmpegSubscriber)
+        val out: Container = DefaultMp4Builder().build(compressedMovie)
+        val fc: FileChannel = RandomAccessFile(outputFile, "rw").channel
+        out.writeContainer(fc)
+        fc.close()
     }
 
-    override fun compressAsync(cls: Class<*>, oldPath: String, compressPath: String) {
-        val commands = "ffmpeg -y -i $oldPath -b 2097k -r 30 -vcodec libx264 -preset superfast $compressPath"
-        if (mVideoCompressListener[cls] == null) {
-            return
-        }
-        var myRxFfmpegSubscriber = mMyRxFfmpegCompressSubscriber[cls]
-        if (myRxFfmpegSubscriber == null) {
-            myRxFfmpegSubscriber = MyRxFfmpegSubscriber(mVideoCompressListener[cls]!!)
-        }
-
-        // 开始执行FFmpeg命令
-        RxFFmpegInvoke.getInstance().runCommand(commands.split(" ".toRegex()).toTypedArray(),
-                myRxFfmpegSubscriber)
-    }
-
-    override fun onCompressDestroy(cls: Class<*>) {
-        mMyRxFfmpegCompressSubscriber[cls]?.dispose()
-        mVideoCompressListener[cls] = null
-    }
-
-    override fun onCompressDispose(cls: Class<*>) {
-        mMyRxFfmpegCompressSubscriber[cls]?.dispose()
-    }
 }

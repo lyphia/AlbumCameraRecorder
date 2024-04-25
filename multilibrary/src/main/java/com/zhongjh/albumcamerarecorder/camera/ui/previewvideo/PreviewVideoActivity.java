@@ -72,6 +72,10 @@ public class PreviewVideoActivity extends AppCompatActivity {
      * 迁移视频的异步线程
      */
     private ThreadUtils.SimpleTask<File> mMoveVideoFileTask;
+    /**
+     * 压缩视频的异步线程
+     */
+    private ThreadUtils.SimpleTask<File> mCompressVideoFileTask;
 
     /**
      * 打开activity
@@ -112,11 +116,13 @@ public class PreviewVideoActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         if (mGlobalSpec.isCompressEnable() && mGlobalSpec.getVideoCompressCoordinator() != null) {
-            mGlobalSpec.getVideoCompressCoordinator().onCompressDestroy(PreviewVideoActivity.this.getClass());
             mGlobalSpec.setVideoCompressCoordinator(null);
         }
         if (mMoveVideoFileTask != null) {
             mMoveVideoFileTask.cancel();
+        }
+        if (mCompressVideoFileTask != null) {
+            mCompressVideoFileTask.cancel();
         }
         super.onDestroy();
     }
@@ -218,29 +224,33 @@ public class PreviewVideoActivity extends AppCompatActivity {
             // 获取文件名称
             String newFileName = mLocalFile.getPath().substring(mLocalFile.getPath().lastIndexOf(File.separator));
             File newFile = mVideoMediaStoreCompat.createFile(newFileName, 1, false);
-            mGlobalSpec.getVideoCompressCoordinator().setVideoCompressListener(PreviewVideoActivity.this.getClass(), new VideoEditListener() {
-                @Override
-                public void onFinish() {
-                    confirm(newFile);
-                }
-
-                @Override
-                public void onProgress(int progress, long progressTime) {
-                    mBtnConfirm.setProgress(progress);
-                }
-
-                @Override
-                public void onCancel() {
-
-                }
-
-                @Override
-                public void onError(@NotNull String message) {
-                    mIsRun = false;
-                }
-            });
             if (mLocalFile.getPath() != null && mGlobalSpec.getVideoCompressCoordinator() != null) {
-                mGlobalSpec.getVideoCompressCoordinator().compressRxJava(PreviewVideoActivity.this.getClass(), mLocalFile.getPath(), newFile.getPath());
+                mBtnConfirm.setProgress(50);
+                mCompressVideoFileTask = new ThreadUtils.SimpleTask<File>() {
+                    @Override
+                    public File doInBackground() {
+                        mGlobalSpec.getVideoCompressCoordinator().compress(mLocalFile.getPath(), newFile.getPath());
+                        return null;
+                    }
+
+                    @Override
+                    public void onSuccess(File result) {
+                        mBtnConfirm.setProgress(100);
+                        confirm(newFile);
+                    }
+
+                    @Override
+                    public void onFail(Throwable t) {
+                        super.onFail(t);
+                        mIsRun = false;
+                    }
+
+                    @Override
+                    public void onCancel() {
+                        super.onCancel();
+                        mIsRun = false;
+                    }
+                };
             }
         }
     }

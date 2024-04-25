@@ -396,7 +396,6 @@ public class MatissFragment extends Fragment implements AlbumCollection.AlbumCal
     public void onDestroy() {
         Log.d(TAG, "MatissFragment onDestroy");
         if (mGlobalSpec.isCompressEnable() && mGlobalSpec.getVideoCompressCoordinator() != null) {
-            mGlobalSpec.getVideoCompressCoordinator().onCompressDestroy(MatissFragment.this.getClass());
             mGlobalSpec.setVideoCompressCoordinator(null);
         }
         // 销毁相册model

@@ -55,6 +55,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 预览的基类
@@ -149,6 +150,10 @@ public class BasePreviewActivity extends AppCompatActivity implements View.OnCli
      * 异步线程的逻辑
      */
     private AlbumCompressFileTask mAlbumCompressFileTask;
+    /**
+     * 完成压缩-复制的异步线程
+     */
+    ThreadUtils.SimpleTask<Void> mCompressVideoFileTask;
 
     protected ViewHolder mViewHolder;
     /**
@@ -333,6 +338,9 @@ public class BasePreviewActivity extends AppCompatActivity implements View.OnCli
             if (mCompressFileTask != null) {
                 mCompressFileTask.cancel();
             }
+            if (mCompressVideoFileTask != null) {
+                mCompressVideoFileTask.cancel();
+            }
             // 恢复界面可用
             setControlTouchEnable(true);
         });
@@ -366,6 +374,9 @@ public class BasePreviewActivity extends AppCompatActivity implements View.OnCli
     protected void onDestroy() {
         if (mCompressFileTask != null) {
             ThreadUtils.cancel(mCompressFileTask);
+        }
+        if (mCompressVideoFileTask != null) {
+            ThreadUtils.cancel(mCompressVideoFileTask);
         }
         mAdapter.destroy();
         super.onDestroy();
@@ -721,6 +732,48 @@ public class BasePreviewActivity extends AppCompatActivity implements View.OnCli
     }
 
     /**
+     * 压缩视频
+     */
+    private ThreadUtils.SimpleTask<Void> getCompressVideoFileTask(String path, File newFile, LocalFile item) {
+        mCompressVideoFileTask = new ThreadUtils.SimpleTask<Void>() {
+
+            @Override
+            public Void doInBackground() {
+                Objects.requireNonNull(mGlobalSpec.getVideoCompressCoordinator()).compress(path, newFile.getPath());
+                return null;
+            }
+
+            @Override
+            public void onSuccess(Void result) {
+                item.updateFile(getApplicationContext(), mPictureMediaStoreCompat, item, newFile, true);
+                // 如果是编辑过的加入相册
+                if (item.getOldPath() != null) {
+                    if (mGlobalSpec.isAddAlbumByVideo()) {
+                        Uri uri = MediaStoreUtils.displayToGallery(getApplicationContext(), newFile, TYPE_VIDEO,
+                                item.getDuration(), item.getWidth(), item.getHeight(),
+                                mVideoMediaStoreCompat.getSaveStrategy().getDirectory(), mVideoMediaStoreCompat);
+                        item.setId(MediaStoreUtils.getId(uri));
+                    } else {
+                        item.setId(System.currentTimeMillis());
+                    }
+                }
+                Log.d(TAG, "不存在新建文件");
+            }
+
+            @Override
+            public void onFail(Throwable t) {
+                super.onFail(t);
+            }
+
+            @Override
+            public void onCancel() {
+                super.onCancel();
+            }
+        };
+        return mCompressVideoFileTask;
+    }
+
+    /**
      * 处理压缩和迁移的核心逻辑
      *
      * @param item LocalFile
@@ -760,40 +813,9 @@ public class BasePreviewActivity extends AppCompatActivity implements View.OnCli
                     if (item.getOldPath() != null) {
                         newFile = mPictureMediaStoreCompat.createFile(0, false, mAlbumCompressFileTask.getNameSuffix(item.getOldPath()));
                     }
-                    File finalNewFile = newFile;
-                    mGlobalSpec.getVideoCompressCoordinator().setVideoCompressListener(BasePreviewActivity.class, new VideoEditListener() {
-                        @Override
-                        public void onFinish() {
-                            item.updateFile(getApplicationContext(), mPictureMediaStoreCompat, item, finalNewFile, true);
-                            // 如果是编辑过的加入相册
-                            if (item.getOldPath() != null) {
-                                if (mGlobalSpec.isAddAlbumByVideo()) {
-                                    Uri uri = MediaStoreUtils.displayToGallery(getApplicationContext(), finalNewFile, TYPE_VIDEO,
-                                            item.getDuration(), item.getWidth(), item.getHeight(),
-                                            mVideoMediaStoreCompat.getSaveStrategy().getDirectory(), mVideoMediaStoreCompat);
-                                    item.setId(MediaStoreUtils.getId(uri));
-                                } else {
-                                    item.setId(System.currentTimeMillis());
-                                }
-                            }
-                            Log.d(TAG, "不存在新建文件");
-                        }
-
-                        @Override
-                        public void onProgress(int progress, long progressTime) {
-                        }
-
-                        @Override
-                        public void onCancel() {
-
-                        }
-
-                        @Override
-                        public void onError(@NotNull String message) {
-                        }
-                    });
                     if (mGlobalSpec.getVideoCompressCoordinator() != null) {
-                        mGlobalSpec.getVideoCompressCoordinator().compressAsync(BasePreviewActivity.class, path, finalNewFile.getPath());
+                        ThreadUtils.executeByIo(getCompressVideoFileTask(path, newFile, item));
+
                     }
                 }
             }

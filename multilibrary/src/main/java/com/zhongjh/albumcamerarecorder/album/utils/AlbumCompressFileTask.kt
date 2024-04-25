@@ -23,10 +23,10 @@ import java.util.*
  * @date 2022/2/9
  */
 class AlbumCompressFileTask(
-    private val context: Context, private val tag: String, private val clsKey: Class<*>,
-    private val globalSpec: GlobalSpec,
-    private val pictureMediaStoreCompat: MediaStoreCompat,
-    private val videoMediaStoreCompat: MediaStoreCompat
+        private val context: Context, private val tag: String, private val clsKey: Class<*>,
+        private val globalSpec: GlobalSpec,
+        private val pictureMediaStoreCompat: MediaStoreCompat,
+        private val videoMediaStoreCompat: MediaStoreCompat
 ) {
     fun compressFileTaskDoInBackground(localFiles: ArrayList<LocalFile>): ArrayList<LocalFile> {
         // 将 缓存文件 拷贝到 配置目录
@@ -46,11 +46,11 @@ class AlbumCompressFileTask(
                 val newFile = getNewFile(item, path, newFileName)
                 if (newFile.exists()) {
                     val localFile: LocalFile =
-                        if (item.isImage()) {
-                            LocalFile(context, pictureMediaStoreCompat, item, newFile, true)
-                        } else {
-                            LocalFile(context, videoMediaStoreCompat, item, newFile, true)
-                        }
+                            if (item.isImage()) {
+                                LocalFile(context, pictureMediaStoreCompat, item, newFile, true)
+                            } else {
+                                LocalFile(context, videoMediaStoreCompat, item, newFile, true)
+                            }
                     newLocalFiles.add(localFile)
                     Log.d(tag, "存在直接使用")
                 } else {
@@ -60,42 +60,21 @@ class AlbumCompressFileTask(
                         // 移动到新的文件夹
                         FileUtil.copy(compressionFile, newFile)
                         newLocalFiles.add(
-                            LocalFile(
-                                context,
-                                pictureMediaStoreCompat,
-                                item,
-                                newFile,
-                                true
-                            )
+                                LocalFile(
+                                        context,
+                                        pictureMediaStoreCompat,
+                                        item,
+                                        newFile,
+                                        true
+                                )
                         )
                         Log.d(tag, "不存在新建文件")
                     } else if (item.isVideo()) {
                         if (globalSpec.isCompressEnable) {
                             // 压缩视频
-                            globalSpec.videoCompressCoordinator?.setVideoCompressListener(
-                                clsKey,
-                                object : VideoEditListener {
-                                    override fun onFinish() {
-                                        val localFile = LocalFile(
-                                            context,
-                                            videoMediaStoreCompat,
-                                            item,
-                                            newFile,
-                                            true
-                                        )
-                                        newLocalFiles.add(localFile)
-                                        Log.d(tag, "不存在新建文件")
-                                    }
-
-                                    override fun onProgress(progress: Int, progressTime: Long) {}
-                                    override fun onCancel() {}
-                                    override fun onError(message: String) {}
-                                })
-                            globalSpec.videoCompressCoordinator?.compressAsync(
-                                clsKey,
-                                path,
-                                newFile.path
-                            )
+                            globalSpec.videoCompressCoordinator?.compress(path, newFile.path)
+                            val localFile = LocalFile(context, videoMediaStoreCompat, item, newFile, true)
+                            newLocalFiles.add(localFile)
                         }
                     }
                 }
@@ -114,12 +93,12 @@ class AlbumCompressFileTask(
         val oldFile = File(path)
         // 根据类型压缩
         val compressionFile: File =
-            if (globalSpec.imageCompressionInterface != null) {
-                // 压缩图片
-                globalSpec.imageCompressionInterface!!.compressionFile(context, oldFile)
-            } else {
-                oldFile
-            }
+                if (globalSpec.imageCompressionInterface != null) {
+                    // 压缩图片
+                    globalSpec.imageCompressionInterface!!.compressionFile(context, oldFile)
+                } else {
+                    oldFile
+                }
         return compressionFile
     }
 
